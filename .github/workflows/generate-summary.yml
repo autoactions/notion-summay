@@ -2,8 +2,8 @@ name: Scheduled Fetch
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Run at 2 AM every day
-  workflow_dispatch:  # Allow manual trigger
+    - cron: '0 2 * * *'  # 每天凌晨2点运行
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   fetch-and-generate-summary:
@@ -39,7 +39,7 @@ jobs:
               "page_size": 1
             }
 
-      - name: Process Response and Generate
+      - name: Process Response and Generate Summary
         id: generate-summary
         if: success()
         run: |
@@ -51,36 +51,19 @@ jobs:
           
           if [ -n "$url" ] && [ "$url" != "null" ]; then
             echo "url=$url" >> $GITHUB_OUTPUT
+            
+            summary_url="${{ secrets.SUMMARY_API }}/$url"
+            echo "Summary URL: $summary_url"
+            
+            redirect_url=$(curl -s -o /dev/null -w "%{redirect_url}" "$summary_url")
+            echo "Redirected Summary URL: $redirect_url"
+            
+            if [ -n "$redirect_url" ]; then
+              echo "summary_url=$redirect_url" >> $GITHUB_OUTPUT
+            else
+              echo "Failed to get redirected summary URL"
+            fi
           else
             echo "Failed to get a valid URL from Notion response"
             echo "url=" >> $GITHUB_OUTPUT
           fi
-
-      - name: Get Redirect URL
-        if: success() && steps.generate-summary.outputs.url != ''
-        uses: actionsflow/axios@v1
-        id: get-redirect
-        with:
-          url: ${{ steps.generate-summary.outputs.url }}
-          method: 'GET'
-          accept: 200,301,302
-          headers: '{ "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}" }'
-
-      - name: Output URL
-        if: success() && steps.get-redirect.outputs.headers
-        run: |
-          echo "Redirect Response Headers:"
-          echo '${{ toJson(steps.get-redirect.outputs.headers) }}'
-          
-          location_header="${{ fromJson(steps.get-redirect.outputs.headers).location }}"
-          if [ -n "$location_header" ]; then
-            echo "URL: $location_header"
-            echo "redirect_url=$location_header" >> $GITHUB_OUTPUT
-          else
-            echo "Failed to get redirect URL"
-          fi
-
-      - name: Display Summary URL
-        if: success() && steps.get-redirect.outputs.redirect_url
-        run: |
-          echo "Summary URL: ${{ steps.get-redirect.outputs.redirect_url }}"
