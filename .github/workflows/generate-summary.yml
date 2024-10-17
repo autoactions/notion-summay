@@ -5,7 +5,7 @@ on:
     - cron: '0 2 * * *'  # 每天凌晨2点运行
   workflow_dispatch:  # 允许手动触发
 
-jobs:职位：
+jobs:
   fetch-and-generate-summary:
     runs-on: ubuntu-latest
     steps:
@@ -26,20 +26,20 @@ jobs:职位：
           url: ${{ fromJson(steps.fetch-notion.outputs.response).results[0].properties.URL.url }}
           method: GET
           headers: '{"Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}"}'
-          follow-redirects: false
 
       - name: 输出 URL
         if: success()
         run: |
-          url="${{ steps.generate-summary.outputs.headers.location }}"
-          if [ -n "$url" ]; then
-            echo "URL: $url"
-            echo "url=$url" >> $GITHUB_OUTPUT
+          location_header="${{ fromJson(steps.generate-summary.outputs.headers).location }}"
+          if [ -n "$location_header" ]; then
+            echo "URL: $location_header"
+            echo "url=$location_header" >> $GITHUB_OUTPUT
           else
             echo "未能获取到 URL"
+            echo "url=" >> $GITHUB_OUTPUT
           fi
 
-    #   - name: 显示摘要 URL
-    #     if: success() && steps.generate-summary.outputs.url
-    #     run: |
-    #       echo "摘要 URL: ${{ steps.generate-summary.outputs.url }}"
+      - name: 显示摘要 URL
+        if: success() && steps.generate-summary.outputs.url != ''
+        run: |
+          echo "摘要 URL: ${{ steps.generate-summary.outputs.url }}"
