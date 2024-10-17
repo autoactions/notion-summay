@@ -28,7 +28,7 @@ jobs:
                 "property": "笔记",
                 "url": {
                   "is_empty": true
-                }}
+                }
               },
               "sorts": [
                 {
