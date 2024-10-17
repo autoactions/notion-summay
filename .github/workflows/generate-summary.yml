@@ -48,16 +48,18 @@ jobs:
           results=$(echo '${{ steps.fetch-notion.outputs.data }}' | jq -c '.results[]')
           
           while IFS= read -r result; do
-            url=$(echo "$result" | jq -r '.properties.原链接.url')
+            # Try to get URL from different properties
+            url=$(echo "$result" | jq -r '.properties | (.原链接.url // .URL.url // .链接.url // "")')
             page_id=$(echo "$result" | jq -r '.id')
             
-            echo "Processing URL: $url"
+            echo "Processing Page ID: $page_id"
+            echo "Found URL: $url"
             
             if [ -n "$url" ] && [ "$url" != "null" ]; then
               summary_url="${{ secrets.SUMMARY_API }}/$url"
               echo "Summary URL: $summary_url"
               
-              redirect_url=$(curl -s -I -o /dev/null -w "%{redirect_url}" "$summary_url")redirect_url=$(curl -s -I -o /dev/null -w "%{redirect_url}" "$summary_url")
+              redirect_url=$(curl -s -I -o /dev/null -w "%{redirect_url}" "$summary_url")
               echo "Redirected Summary URL: $redirect_url"
               
               if [ -n "$redirect_url" ]; then
@@ -68,7 +70,7 @@ jobs:
                   -H "Notion-Version: 2022-06-28" \
                   -d "{\"properties\":{\"笔记\":{\"url\":\"$redirect_url\"}}}"
                 
-                echo "Waiting for 1 minute before processing next record"
+                echo "Waiting for a period before processing the next record"
                 sleep 100
               else
                 echo "Failed to get redirected summary URL"
