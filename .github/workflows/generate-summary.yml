@@ -48,7 +48,7 @@ jobs:
           results=$(echo '${{ steps.fetch-notion.outputs.data }}' | jq -c '.results[]')
           
           while IFS= read -r result; do
-            url=$(echo "$result" | jq -r '.properties.URL.url')
+            url=$(echo "$result" | jq -r '.properties.原链接.url')
             page_id=$(echo "$result" | jq -r '.id')
             
             echo "Processing URL: $url"
