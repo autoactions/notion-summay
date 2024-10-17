@@ -1,9 +1,9 @@
-name: Generate Summary
+name: Scheduled Fetch
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Run every 30 minutes
-  workflow_dispatch:  # Allow manual triggering
+    - cron: '0 2 * * *'  # Run at 2 AM every day- cron: '*/30 * * * *' # 每 30 分钟运行一次
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   fetch-and-generate-summary:
@@ -38,7 +38,6 @@ jobs:
               ],
               "page_size": 5
             }
-
       - name: Process Response and Update Notion Pages
         if: success()
         run: |
@@ -48,12 +47,10 @@ jobs:
           results=$(echo '${{ steps.fetch-notion.outputs.data }}' | jq -c '.results[]')
           
           while IFS= read -r result; do
-            # Try to get URL from different properties
-            url=$(echo "$result" | jq -r '.properties | (.原链接.url // .URL.url // .链接.url // "")')
+            url=$(echo "$result" | jq -r '.properties.原链接.url')
             page_id=$(echo "$result" | jq -r '.id')
             
-            echo "Processing Page ID: $page_id"
-            echo "Found URL: $url"
+            echo "Processing URL: $url"
             
             if [ -n "$url" ] && [ "$url" != "null" ]; then
               summary_url="${{ secrets.SUMMARY_API }}/$url"
