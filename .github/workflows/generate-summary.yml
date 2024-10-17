@@ -1,43 +1,63 @@
-name: 定时获取
+name: Scheduled Fetch
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 每天凌晨2点运行
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 2 * * *'  # Run at 2 AM every day
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   fetch-and-generate-summary:
     runs-on: ubuntu-latest
     steps:
-      - name: 发送请求到 Notion API
+      - name: Send Request to Notion API
         uses: actionsflow/axios@v1
         id: fetch-notion
         with:
           url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
           method: 'POST'
           accept: 200
-          headers: '{ "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}", "Notion-Version": "2022-06-28" }'
-          content-type: 'application/json'
-          data: '{ "filter": {"property": "Tags", "multi_select": {"contains": ""}}, "sorts": [{"property": "Created", "direction": "descending"}], "page_size": 1 }'
+          headers: |
+            {
+              "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}",
+              "Notion-Version": "2022-06-28",
+              "Content-Type": "application/json"
+            }
+          data: |
+            {
+              "filter": {
+                "property": "Tags",
+                "multi_select": {
+                  "contains": ""
+                }
+              },
+              "sorts": [
+                {
+                  "property": "Created",
+                  "direction": "descending"
+                }
+              ],
+              "page_size": 1
+            }
 
-      - name: 处理响应并生成
+      - name: Process Response and Generate
+        id: generate-summary
         if: success()
         run: |
-          echo "API 响应内容："
+          echo "API Response Content:"
           echo '${{ steps.fetch-notion.outputs.data }}' | jq '.'
           
           url=$(echo '${{ steps.fetch-notion.outputs.data }}' | jq -r '.results[0].properties.URL.url')
-          echo "提取的 URL: $url"
+          echo "Extracted URL: $url"
           
           if [ -n "$url" ] && [ "$url" != "null" ]; then
             echo "url=$url" >> $GITHUB_OUTPUT
           else
-            echo "未能从 Notion 响应中获取有效的 URL"
-            exit 1
+            echo "Failed to get a valid URL from Notion response"
+            echo "url=" >> $GITHUB_OUTPUT
           fi
 
-      - name: 获取重定向 URL
-        if: success()
+      - name: Get Redirect URL
+        if: success() && steps.generate-summary.outputs.url != ''
         uses: actionsflow/axios@v1
         id: get-redirect
         with:
@@ -46,10 +66,10 @@ jobs:
           accept: 200,301,302
           headers: '{ "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}" }'
 
-      - name: 输出 URL
-        if: success()
+      - name: Output URL
+        if: success() && steps.get-redirect.outputs.headers
         run: |
-          echo "重定向响应头："
+          echo "Redirect Response Headers:"
           echo '${{ toJson(steps.get-redirect.outputs.headers) }}'
           
           location_header="${{ fromJson(steps.get-redirect.outputs.headers).location }}"
@@ -57,10 +77,10 @@ jobs:
             echo "URL: $location_header"
             echo "redirect_url=$location_header" >> $GITHUB_OUTPUT
           else
-            echo "未能获取到重定向 URL"
+            echo "Failed to get redirect URL"
           fi
 
-      - name: 显示摘要 URL
+      - name: Display Summary URL
         if: success() && steps.get-redirect.outputs.redirect_url
         run: |
-          echo "摘要 URL: ${{ steps.get-redirect.outputs.redirect_url }}"
+          echo "Summary URL: ${{ steps.get-redirect.outputs.redirect_url }}"
