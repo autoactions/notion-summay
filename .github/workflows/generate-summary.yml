@@ -1,9 +1,9 @@
-name: Scheduled Fetch
+name: Generate Summary
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 每天凌晨2点运行
-  workflow_dispatch:  # 允许手动触发
+    - cron: '*/30 * * * *'  # Run every 30 minutes
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   fetch-and-generate-summary:
@@ -15,7 +15,7 @@ jobs:
         with:
           url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
           method: 'POST'
-          accept: 200
+          accept: 200接受：200
           headers: |
             {
               "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}",
@@ -25,18 +25,18 @@ jobs:
           data: |
             {
               "filter": {
-                "property": "Tags",
-                "multi_select": {
-                  "contains": ""
+                "property": "Link",
+                "url": {
+                  "is_empty": true
                 }
               },
               "sorts": [
                 {
                   "property": "Created",
-                  "direction": "descending"
+                  "direction": "ascending"
                 }
               ],
-              "page_size": 3
+              "page_size": 5
             }
 
       - name: Process Response and Update Notion Pages
@@ -69,7 +69,7 @@ jobs:
                   -d "{\"properties\":{\"Link\":{\"url\":\"$redirect_url\"}}}"
                 
                 echo "Waiting for 1 minute before processing next record"
-                sleep 60
+                sleep 100
               else
                 echo "Failed to get redirected summary URL"
               fi
