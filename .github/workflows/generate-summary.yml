@@ -1,9 +1,9 @@
 name: 定时获取
 
 on:
-  schedule:
+  schedule:日程：
     - cron: '0 2 * * *'  # 每天凌晨2点运行
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:  # 允许手动触发workflow_dispatch:  # 允许手动触发
 
 jobs:
   fetch-and-generate-summary:
@@ -21,25 +21,37 @@ jobs:
       - name: 处理响应并生成
         if: success()
         id: generate-summary
+        run: |
+          response='${{ steps.fetch-notion.outputs.response }}'
+          url=$(echo "$response" | jq -r '.results[0].properties.URL.url')
+          if [ -n "$url" ]; then
+            echo "url=$url" >> $GITHUB_OUTPUT
+          else
+            echo "未能从 Notion 响应中获取 URL"
+            exit 1
+          fi
+
+      - name: 获取重定向 URL
+        if: success()
+        id: get-redirect
         uses: actionsflow/axios@v1
         with:
-          url: ${{ fromJson(steps.fetch-notion.outputs.response).results[0].properties.URL.url }}
+          url: ${{ steps.generate-summary.outputs.url }}
           method: GET
           headers: '{"Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}"}'
 
       - name: 输出 URL
         if: success()
         run: |
-          location_header="${{ fromJson(steps.generate-summary.outputs.headers).location }}"
+          location_header="${{ fromJson(steps.get-redirect.outputs.headers).location }}"
           if [ -n "$location_header" ]; then
             echo "URL: $location_header"
-            echo "url=$location_header" >> $GITHUB_OUTPUT
+            echo "redirect_url=$location_header" >> $GITHUB_OUTPUT
           else
-            echo "未能获取到 URL"
-            echo "url=" >> $GITHUB_OUTPUT
+            echo "未能获取到重定向 URL"
           fi
 
       - name: 显示摘要 URL
-        if: success() && steps.generate-summary.outputs.url != ''
+        if: success() && steps.get-redirect.outputs.redirect_url
         run: |
-          echo "摘要 URL: ${{ steps.generate-summary.outputs.url }}"
+          echo "摘要 URL: ${{ steps.get-redirect.outputs.redirect_url }}"
