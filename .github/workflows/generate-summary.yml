@@ -13,20 +13,20 @@ jobs:
         uses: actionsflow/axios@v1
         id: fetch-notion
         with:
-          url: 'https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query'
-          method: POST方法：POST
-          headers: '{"Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}'
-          data: '{"filter": {"property": "Tags", "multi_select": {"contains": ""}}, "sorts": [{"property": "Created", "direction": "descending"}], "page_size": 1}'
+          url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
+          method: 'POST'
+          accept: 200
+          headers: '{ "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}", "Notion-Version": "2022-06-28" }'
+          content-type: 'application/json'
+          data: '{ "filter": {"property": "Tags", "multi_select": {"contains": ""}}, "sorts": [{"property": "Created", "direction": "descending"}], "page_size": 1 }'
 
       - name: 处理响应并生成
         if: success()
-        id: generate-summary
         run: |
           echo "API 响应内容："
-          echo '${{ steps.fetch-notion.outputs.response }}' | jq '.'
+          echo '${{ steps.fetch-notion.outputs.data }}' | jq '.'
           
-          response='${{ steps.fetch-notion.outputs.response }}'
-          url=$(echo "$response" | jq -r '.results[0].properties.URL.url')
+          url=$(echo '${{ steps.fetch-notion.outputs.data }}' | jq -r '.results[0].properties.URL.url')
           echo "提取的 URL: $url"
           
           if [ -n "$url" ] && [ "$url" != "null" ]; then
@@ -38,12 +38,13 @@ jobs:
 
       - name: 获取重定向 URL
         if: success()
-        id: get-redirect
         uses: actionsflow/axios@v1
+        id: get-redirect
         with:
           url: ${{ steps.generate-summary.outputs.url }}
-          method: GET
-          headers: '{"Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}"}'
+          method: 'GET'
+          accept: 200,301,302
+          headers: '{ "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}" }'
 
       - name: 输出 URL
         if: success()
