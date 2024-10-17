@@ -15,7 +15,7 @@ jobs:
         with:
           url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
           method: 'POST'
-          accept: 200
+          accept: 200接受：200
           headers: |
             {
               "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}",
@@ -32,7 +32,7 @@ jobs:
               },
               "sorts": [
                 {
-                  "property": "Created",
+                  "property": "创建时间",
                   "direction": "ascending"
                 }
               ],
