@@ -9,7 +9,7 @@ jobs:
   fetch-and-generate-summary:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Request to Notion API
+      - name: Send Request to Notion API- 名称：向 Notion API 发送请求
         uses: actionsflow/axios@v1
         id: fetch-notion
         with:
@@ -39,8 +39,8 @@ jobs:
               "page_size": 1
             }
 
-      - name: Process Response and Generate Summary
-        id: generate-summary
+      - name: Process Response and Get Summary URL
+        id: get-summary-url
         if: success()
         run: |
           echo "API Response Content:"
@@ -55,7 +55,7 @@ jobs:
             summary_url="${{ secrets.SUMMARY_API }}/$url"
             echo "Summary URL: $summary_url"
             
-            redirect_url=$(curl -s -o /dev/null -w "%{redirect_url}" "$summary_url")
+            redirect_url=$(curl -s -I -o /dev/null -w "%{redirect_url}" "$summary_url")
             echo "Redirected Summary URL: $redirect_url"
             
             if [ -n "$redirect_url" ]; then
