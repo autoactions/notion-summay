@@ -15,7 +15,7 @@ jobs:
         with:
           url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
           method: 'POST'
-          accept: 200接受：200
+          accept: 200
           headers: |
             {
               "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}",
