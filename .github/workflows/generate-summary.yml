@@ -5,12 +5,12 @@ on:
     - cron: '0 2 * * *'  # 每天凌晨2点运行
   workflow_dispatch:  # 允许手动触发
 
-jobs:
+jobs:职位：
   fetch-and-generate-summary:
     runs-on: ubuntu-latest
     steps:
       - name: 发送请求到 Notion API
-        uses: actionsflow/axios-actions@v1
+        uses: actionsflow/axios@v1
         id: fetch-notion
         with:
           url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
@@ -21,7 +21,7 @@ jobs:
       - name: 处理响应并生成
         if: success()
         id: generate-summary
-        uses: actionsflow/axios-actions@v1
+        uses: actionsflow/axios@v1
         with:
           url: ${{ fromJson(steps.fetch-notion.outputs.response).results[0].properties.URL.url }}
           method: GET
