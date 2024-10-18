@@ -1,0 +1,97 @@
+name: Process Notion Pages
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨2点运行
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  process-notion-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Send Request to Notion API
+        uses: actionsflow/axios@v1
+        id: fetch-notion
+        with:
+          url: https://api.notion.com/v1/databases/${{ secrets.DATABASE_ID }}/query
+          method: 'POST'
+          accept: 200
+          headers: |
+            {
+              "Authorization": "Bearer ${{ secrets.NOTION_TOKEN }}",
+              "Notion-Version": "2022-06-28",
+              "Content-Type": "application/json"
+            }
+          data: |
+            {
+              "filter": {
+                "property": "笔记",
+                "url": {
+                  "is_empty": true
+                }
+              },
+              "sorts": [
+                {
+                  "property": "创建时间",
+                  "direction": "ascending"
+                }
+              ],
+              "page_size": 5
+            }
+
+      - name: Process Pages and Transfer Images
+        if: success()
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          SUMMARY_API: ${{ secrets.SUMMARY_API }}
+          IMAGE_HOST: ${{ secrets.IMAGE_HOST }}
+        run: |
+          echo "API Response Content:"
+          echo '${{ steps.fetch-notion.outputs.data }}' | jq '.'
+          
+          echo '${{ steps.fetch-notion.outputs.data }}' | jq -c '.results[]' | while read -r result; do
+            url=$(echo "$result" | jq -r '.properties."原链接".url')
+            page_id=$(echo "$result" | jq -r '.id')
+            
+            echo "Processing URL: $url"
+            
+            if [ -n "$url" ] && [ "$url" != "null" ]; then
+              summary_url="${SUMMARY_API}/$url"
+              echo "Summary URL: $summary_url"
+              
+              redirect_url=$(curl -s -I -o /dev/null -w "%{redirect_url}" "$summary_url")
+              echo "Redirected Summary URL: $redirect_url"
+              
+              if [ -n "$redirect_url" ]; then
+                echo "Updating Notion page with summary URL"
+                curl -X PATCH "https://api.notion.com/v1/pages/$page_id" \
+                  -H "Authorization: Bearer ${NOTION_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -H "Notion-Version: 2022-06-28" \
+                  -d "{\"properties\":{\"笔记\":{\"url\":\"$redirect_url\"}}}"
+                
+                echo "Processing images for page $page_id"
+                python transfer_images.py "$page_id"
+                
+                echo "Waiting for a period before processing the next record"
+                sleep 100
+              else
+                echo "Failed to get redirected summary URL"
+              fi
+            else
+              echo "Failed to get a valid URL from Notion response"
+            fi
+          done
